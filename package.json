@@ -1,0 +1,31 @@
+{
+  "name": "personal-fantasy-hockey-dashboard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n api,web -c auto \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "node --env-file=.env --watch server/index.ts",
+    "dev:web": "vite",
+    "db:up": "docker compose up -d",
+    "yahoo:auth": "node --env-file=.env server/yahoo/login.ts",
+    "test": "node --test \"server/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "pg": "^8.23.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "concurrently": "^10.0.6",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}
