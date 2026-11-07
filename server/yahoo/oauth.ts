@@ -10,7 +10,8 @@ export const redirectUri = () => process.env.YAHOO_REDIRECT_URI || 'oob';
 export const isConnected = () => existsSync(TOKEN_FILE);
 
 export function authUrl() {
-  const q = new URLSearchParams({ client_id: clientId(), redirect_uri: redirectUri(), response_type: 'code' });
+  // fspt-r = Fantasy Sports read. Asking for it explicitly makes Yahoo reject the login if the app lacks it.
+  const q = new URLSearchParams({ client_id: clientId(), redirect_uri: redirectUri(), response_type: 'code', scope: 'fspt-r' });
   return `https://api.login.yahoo.com/oauth2/request_auth?${q}`;
 }
 

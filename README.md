@@ -16,7 +16,13 @@ Design: [Figma](https://www.figma.com/design/je5SD3ZTgiAwv4CjZUQJTb).
    - Redirect URI: `oob`. (If Yahoo won't accept `oob`, use `https://localhost:8080`, and set
      `YAHOO_REDIRECT_URI=https://localhost:8080` in `.env`.)
    - API Permissions: **Fantasy Sports → Read**.
+   - OAuth Client Type: **Confidential Client** (only those get a Client Secret).
    - Create it, then copy the **Client ID** and **Client Secret** into `.env`.
+   - **Get the app approved.** Since mid-2026 Yahoo refuses every Fantasy request (403 "This application is
+     not authorized to perform this action") until it approves the app, even though sign-in works.
+     Apply at <https://sports.yahoo.com/developer/access/>, sign the DocuSign agreement, then confirm the
+     Client ID at <https://sports.yahoo.com/developer/application-confirmation/>. Reportedly takes 2–4 weeks.
+     After approval, run `npm run yahoo:auth` again.
 5. Start Docker Desktop, then start the database: `npm run db:up`
 6. Connect Yahoo: `npm run yahoo:auth`. Open the link it prints, click Agree, and paste the code back.
    (With an https redirect, paste the whole address you land on; the page itself won't load, that's fine.)
