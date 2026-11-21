@@ -31,7 +31,7 @@ const playersOf = (fc: Y) => list(fc.league?.[1]?.players ?? fc.team?.[1]?.roste
 
 export const yahooSource: FantasySource = {
   async myTeamKey() {
-    const fc = await yahoo('users;use_login=1/games;game_keys=nhl/teams');
+    const fc = await yahoo('users;use_login=1/games;game_codes=nhl/teams');
     const game = fc.users['0'].user[1].games['0'].game;
     const teams = list(game[1]?.teams, 'team').map((t) => merge(t[0]));
     if (teams.length !== 1) {
