@@ -11,5 +11,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  scraper:
+    build: ./scraper
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${SCRAPER_PORT:-3002}:3002"
+
 volumes:
   pgdata:

@@ -3,7 +3,7 @@ import { ensureDb } from './db.ts';
 import { refresh } from './refresh.ts';
 import { isConnected, NotConnectedError } from './yahoo/oauth.ts';
 import { yahooSource } from './yahoo/source.ts';
-import { lastRefresh, lineupView, matchupView, waiversView, type Status } from './views.ts';
+import { lastRefresh, lineupView, matchupView, setStreamerMark, streamingView, waiversView, type Status } from './views.ts';
 
 const app = express();
 const PORT = 3001;
@@ -38,5 +38,10 @@ app.post('/api/refresh', route(async () => {
 app.get('/api/lineup', route((req) => lineupView(typeof req.query.day === 'string' ? req.query.day : undefined)));
 app.get('/api/waivers', route(waiversView));
 app.get('/api/matchup', route(matchupView));
+app.get('/api/streaming', route((req) => streamingView(typeof req.query.day === 'string' ? req.query.day : undefined)));
+app.put('/api/streamers/:key', express.json(), route(async (req) => {
+  if (typeof req.body?.marked !== 'boolean') throw new Error('Send { "marked": true | false }');
+  return setStreamerMark(String(req.params.key), req.body.marked);
+}));
 
 app.listen(PORT, '127.0.0.1', () => console.log(`API on http://localhost:${PORT}`));

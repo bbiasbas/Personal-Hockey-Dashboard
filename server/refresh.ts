@@ -1,7 +1,8 @@
 import { ensureDb, pool } from './db.ts';
 import { addDays, daysBetween, easternDate, fantasyPoints, NHL_TEAMS, seasonStart } from './logic.ts';
-import { fetchSchedule } from './nhl.ts';
+import { fetchGoalieStarts, fetchSchedule, fetchStrength } from './nhl.ts';
 import type { FantasySource, Period, Player, RosterEntry, StatLine } from './source.ts';
+import { savePlan } from './views.ts';
 
 const FREE_AGENTS = 100;
 
@@ -60,12 +61,32 @@ export async function refresh(source: FantasySource) {
     const { rows: last } = await pool.query("select to_char(max(day), 'YYYY-MM-DD') as day from nhl_games");
     const from = last[0].day ? addDays(last[0].day, -7) : seasonStart(today);
     const schedule = await fetchSchedule(from, lg.weekEnd);
+    const strength = await fetchStrength();
+    const adds = await source.adds(teamKey, lg.weekStart, lg.weekEnd);
+
+    // Starting goalies for today and tomorrow; a failed scrape only means goalie starts show as projected.
+    const goalieDays: { day: string; starts: Awaited<ReturnType<typeof fetchGoalieStarts>> }[] = [];
+    for (const day of [today, addDays(today, 1)]) {
+      try {
+        goalieDays.push({ day, starts: await fetchGoalieStarts(day) });
+      } catch (e) {
+        warnings.push(`Starting goalies for ${day} unavailable, so goalie starts show as projected only: ${(e as Error).message}`);
+      }
+    }
 
     const client = await pool.connect();
     try {
       await client.query('begin');
-      await client.query('delete from league; delete from matchup; delete from rosters; delete from free_agents');
-      await client.query('insert into league (key, name, my_team_key, week, week_start, week_end) values ($1, $2, $3, $4, $5, $6)', [lg.key, lg.name, teamKey, lg.week, lg.weekStart, lg.weekEnd]);
+      await client.query('delete from league; delete from matchup; delete from rosters; delete from free_agents; delete from team_strength');
+      await client.query(
+        'insert into league (key, name, my_team_key, week, week_start, week_end, max_weekly_adds, roster_slots, adds_used, added_this_week) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+        [lg.key, lg.name, teamKey, lg.week, lg.weekStart, lg.weekEnd, lg.maxWeeklyAdds, JSON.stringify(lg.rosterSlots), adds.length, [...new Set(adds)]],
+      );
+      for (const t of strength) await client.query('insert into team_strength (team, gf_per_game, ga_per_game) values ($1, $2, $3)', [t.team, t.gfPerGame, t.gaPerGame]);
+      for (const { day, starts } of goalieDays) {
+        await client.query('delete from goalie_starts where day = $1', [day]);
+        for (const g of starts) await client.query('insert into goalie_starts (day, team, goalie, status) values ($1, $2, $3, $4) on conflict do nothing', [day, g.team, g.goalie, g.status]);
+      }
       for (const t of lg.teams) await client.query('insert into matchup (team_key, name, points, is_mine) values ($1, $2, $3, $4)', [t.key, t.name, t.points, t.key === teamKey]);
       for (const p of players.values()) {
         await client.query(
@@ -75,7 +96,7 @@ export async function refresh(source: FantasySource) {
         );
       }
       for (const r of rosters) for (const e of r.entries) await client.query('insert into rosters (team_key, day, player_key, slot) values ($1, $2, $3, $4)', [r.team, r.day, e.player.key, e.slot]);
-      for (const [i, p] of freeAgents.entries()) await client.query('insert into free_agents (player_key, rank) values ($1, $2) on conflict do nothing', [p.key, i + 1]);
+      for (const [i, p] of freeAgents.entries()) await client.query('insert into free_agents (player_key, rank, waiver_date) values ($1, $2, $3) on conflict do nothing', [p.key, i + 1, p.waiverDate]);
       for (const [period, map] of lines) {
         for (const [key, line] of map) await client.query('insert into player_stats (refresh_id, player_key, period, points, games) values ($1, $2, $3, $4, $5)', [refreshId, key, period, line.points, gamesOf(line)]);
       }
@@ -89,6 +110,13 @@ export async function refresh(source: FantasySource) {
       throw e;
     } finally {
       client.release();
+    }
+
+    // The week plan reads what was just stored. A planner failure shouldn't hide the fresh data.
+    try {
+      await savePlan(refreshId);
+    } catch (e) {
+      await pool.query('update refreshes set warnings = warnings || $2 where id = $1', [refreshId, [`Week plan failed: ${(e as Error).message}`]]);
     }
   } catch (e) {
     await pool.query('update refreshes set finished_at = now(), error = $2 where id = $1', [refreshId, (e as Error).message]);

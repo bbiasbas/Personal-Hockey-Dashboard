@@ -1,5 +1,5 @@
-import { toNhlTeam } from '../logic.ts';
-import type { FantasySource, LeagueInfo, Period, Player, StatLine } from '../source.ts';
+import { easternDate, toNhlTeam } from '../logic.ts';
+import type { FantasySource, FreeAgent, LeagueInfo, Period, Player, StatLine } from '../source.ts';
 import { list, merge, yahoo, type Y } from './api.ts';
 
 const POSITIONS = ['C', 'LW', 'RW', 'D', 'G'];
@@ -7,7 +7,7 @@ const BATCH = 25; // Yahoo's max players per request
 
 const leagueOf = (teamKey: string) => teamKey.split('.t.')[0];
 
-export function parsePlayer(p: Y): { player: Player; slot: string | null; line: StatLine | null } {
+export function parsePlayer(p: Y): { player: Player; slot: string | null; line: StatLine | null; waiverDate: string | null } {
   const info = merge(p[0]);
   const rest = merge(p.slice(1));
   const player: Player = {
@@ -24,7 +24,8 @@ export function parsePlayer(p: Y): { player: Player; slot: string | null; line: 
         stats: Object.fromEntries((rest.player_stats.stats ?? []).map((s: Y) => [String(s.stat.stat_id), Number(s.stat.value) || 0])),
       }
     : null;
-  return { player, slot, line };
+  const waiverDate = rest.ownership?.ownership_type === 'waivers' ? (rest.ownership.waiver_date ?? null) : null;
+  return { player, slot, line, waiverDate };
 }
 
 const playersOf = (fc: Y) => list(fc.league?.[1]?.players ?? fc.team?.[1]?.roster?.['0']?.players, 'player').map(parsePlayer);
@@ -61,6 +62,13 @@ export const yahooSource: FantasySource = {
       weights: Object.fromEntries(mods.map((s: Y) => [String(s.stat_id), Number(s.value)])),
       statNames: Object.fromEntries(cats.map((s: Y) => [String(s.stat_id), s.display_name])),
       teams,
+      maxWeeklyAdds: Number(settings.max_weekly_adds) || null,
+      rosterSlots: Object.fromEntries(
+        (settings.roster_positions ?? [])
+          .map((r: Y) => r.roster_position)
+          .filter((r: Y) => r.is_starting_position || r.position === 'BN')
+          .map((r: Y) => [r.position, Number(r.count)]),
+      ),
     };
   },
 
@@ -69,11 +77,27 @@ export const yahooSource: FantasySource = {
   },
 
   async freeAgents(leagueKey, count) {
-    const out: Player[] = [];
+    const out: FreeAgent[] = [];
     for (let start = 0; start < count; start += BATCH) {
-      const page = playersOf(await yahoo(`league/${leagueKey}/players;status=A;sort=AR;sort_type=lastmonth;start=${start};count=${BATCH}`));
-      out.push(...page.map((p) => p.player));
+      const page = playersOf(await yahoo(`league/${leagueKey}/players;status=A;sort=AR;sort_type=lastmonth;start=${start};count=${BATCH}/ownership`));
+      out.push(...page.map((p) => ({ ...p.player, waiverDate: p.waiverDate })));
       if (page.length < BATCH) break;
+    }
+    return out;
+  },
+
+  async adds(teamKey, from, to) {
+    // shortcut: reads the latest 25 add/drop transactions, plenty for one week under a weekly add limit
+    const fc = await yahoo(`league/${leagueOf(teamKey)}/transactions;team_key=${teamKey};types=add,drop;count=25`);
+    const out: string[] = [];
+    for (const t of list(fc.league?.[1]?.transactions, 'transaction')) {
+      const meta = merge(t[0]);
+      const day = easternDate(new Date(Number(meta.timestamp) * 1000));
+      if (meta.status !== 'successful' || day < from || day > to) continue;
+      for (const p of list(t[1]?.players, 'player')) {
+        const data = merge(p[1]?.transaction_data);
+        if (data.type === 'add' && data.destination_team_key === teamKey) out.push(merge(p[0]).player_key);
+      }
     }
     return out;
   },

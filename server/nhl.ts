@@ -18,3 +18,25 @@ export async function fetchSchedule(from: string, to: string) {
   }
   return out;
 }
+
+// Goals for/against per game for every team, from today's standings.
+export async function fetchStrength() {
+  const res = await fetch('https://api-web.nhle.com/v1/standings/now');
+  if (!res.ok) throw new Error(`NHL standings ${res.status}`);
+  const body = await res.json();
+  return (body.standings ?? [])
+    .filter((t: { gamesPlayed: number }) => t.gamesPlayed > 0)
+    .map((t: { teamAbbrev: { default: string }; goalFor: number; goalAgainst: number; gamesPlayed: number }) => ({
+      team: t.teamAbbrev.default,
+      gfPerGame: t.goalFor / t.gamesPlayed,
+      gaPerGame: t.goalAgainst / t.gamesPlayed,
+    })) as { team: string; gfPerGame: number; gaPerGame: number }[];
+}
+
+// Starting goalies from DailyFaceoff, through the scraper container (docs/adr/0001).
+export async function fetchGoalieStarts(day: string) {
+  const res = await fetch(`${process.env.SCRAPER_URL || 'http://localhost:3002'}/goalies?date=${day}`, { signal: AbortSignal.timeout(30000) });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error ?? `scraper ${res.status}`);
+  return body as { team: string; goalie: string; status: string }[];
+}

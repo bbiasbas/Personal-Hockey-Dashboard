@@ -99,6 +99,38 @@ h1 { font: 700 35px/39px var(--display); margin: 0; }
 .bar .mine { background: var(--brand); }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
 
+/* Streaming Center */
+.title-stack { display: flex; flex-direction: column; gap: 4px; }
+.small { font-size: 14px; line-height: 18px; font-weight: 500; }
+.positive { color: var(--positive); }
+.stats { display: flex; gap: 12px; }
+.stat-box { display: flex; flex-direction: column; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 12px 20px; }
+.stat-value { font: 700 25px/30px var(--display); }
+.card-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px 12px; flex-wrap: wrap; }
+.card-head h2, h2.title { font-size: 17px; line-height: 22px; font-weight: 600; margin: 0; }
+h2.title { font: 700 25px/30px var(--display); }
+.grid-scroll { overflow-x: auto; }
+.grid { width: 100%; border-collapse: collapse; }
+.grid th, .grid td { border-top: 1px solid var(--border); text-align: center; padding: 14px 8px; font-size: 14px; font-weight: 500; }
+.grid th { padding: 0; }
+.grid th button { width: 100%; background: none; border: 0; padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.grid th.selected .overline { color: var(--brand-text); }
+.grid .selected { background: var(--surface-raised); }
+.grid .past { opacity: 0.45; }
+.grid .pos { width: 96px; text-align: left; padding-left: 20px; color: var(--text-secondary); font-size: 13px; font-weight: 600; }
+.grid th.pos { color: var(--text-muted); font-weight: 600; }
+.grid .open { color: var(--brand-text); font-weight: 700; }
+.stream-cols { display: grid; grid-template-columns: 560px 1fr; gap: 24px; align-items: start; }
+.plan { display: flex; flex-direction: column; gap: 12px; }
+.move { background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--r-md); padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+.move-top { display: flex; align-items: center; gap: 12px; }
+.move-gain { margin-left: auto; color: var(--positive); font-size: 14px; font-weight: 700; }
+.move-add { font-weight: 600; }
+.day-view { overflow: hidden; }
+.table.flat { border: 0; border-radius: 0; }
+.foot { padding: 12px 20px; border-top: 1px solid var(--border); }
+@media (max-width: 1100px) { .stream-cols { grid-template-columns: 1fr; } }
+
 /* States */
 .state { display: flex; justify-content: center; padding: 64px 0; }
 .state-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 32px 40px; max-width: 560px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }

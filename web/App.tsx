@@ -2,11 +2,12 @@ import { useState } from 'react';
 import type { Status } from '../server/views.ts';
 import { Lineup } from './Lineup.tsx';
 import { Matchup } from './Matchup.tsx';
+import { Streaming } from './Streaming.tsx';
 import { StateCard } from './ui.tsx';
 import { api, useApi } from './useApi.ts';
 import { Waivers } from './Waivers.tsx';
 
-const TABS = ['Lineup', 'Waivers', 'Matchup'] as const;
+const TABS = ['Lineup', 'Waivers', 'Matchup', 'Streaming'] as const;
 type Tab = (typeof TABS)[number];
 
 function ago(iso: string) {
@@ -56,14 +57,15 @@ export function App() {
   } else if (refreshing) {
     body = (
       <StateCard title="Refreshing your data">
-        Pulling your roster, matchup and free agents from Yahoo, and the schedule from the NHL.
+        Pulling your roster, matchup and free agents from Yahoo, the schedule from the NHL and starting goalies from DailyFaceoff, then planning your streams. This takes about a minute, longer if you raised PLAN_SEARCH_SECONDS.
         <div className="progress" />
       </StateCard>
     );
   } else if (!s.lastRefresh) {
     body = <StateCard title="No data yet" action={{ label: 'Refresh', onClick: refresh }}>Press Refresh to load your team from Yahoo.</StateCard>;
   } else {
-    body = tab === 'Lineup' ? <Lineup reloadKey={reload} /> : tab === 'Waivers' ? <Waivers reloadKey={reload} /> : <Matchup reloadKey={reload} />;
+    const View = { Lineup, Waivers, Matchup, Streaming }[tab];
+    body = <View reloadKey={reload} />;
   }
 
   const problem = refreshError ?? s?.lastRefresh?.error;

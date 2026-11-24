@@ -1,8 +1,9 @@
 # Personal Fantasy Hockey Dashboard
 
 A read-only advisor for my Yahoo fantasy hockey team (H2H points, daily lineups), running on this PC.
-Three views: **Lineup** (who plays today), **Waivers** (best free agents for this week) and **Matchup**
-(score, games left, projected finish). Spec: [docs/spec.md](docs/spec.md).
+Four views: **Lineup** (who plays today), **Waivers** (best free agents for this week), **Matchup**
+(score, games left, projected finish) and **Streaming** (a week plan of add/drop streams, plus a day view).
+Spec: [docs/spec.md](docs/spec.md). Terms: [CONTEXT.md](CONTEXT.md).
 Design: [Figma](https://www.figma.com/design/je5SD3ZTgiAwv4CjZUQJTb).
 
 ## First-time setup
@@ -23,7 +24,10 @@ Design: [Figma](https://www.figma.com/design/je5SD3ZTgiAwv4CjZUQJTb).
      Apply at <https://sports.yahoo.com/developer/access/>, sign the DocuSign agreement, then confirm the
      Client ID at <https://sports.yahoo.com/developer/application-confirmation/>. Reportedly takes 2–4 weeks.
      After approval, run `npm run yahoo:auth` again.
-5. Start Docker Desktop, then start the database: `npm run db:up`
+5. Start Docker Desktop, then start the database and the goalie scraper: `npm run db:up`
+   (the first run builds the scraper image, which takes a few minutes).
+   To keep the data on another drive, move Docker Desktop's disk image there:
+   Settings → Resources → Disk image location.
 6. Connect Yahoo: `npm run yahoo:auth`. Open the link it prints, click Agree, and paste the code back.
    (With an https redirect, paste the whole address you land on; the page itself won't load, that's fine.)
    The token is saved in `.yahoo-token.json` (git-ignored) and renews itself.
@@ -41,7 +45,13 @@ If Docker Desktop isn't running, the dashboard tells you; start it, then `npm ru
 
 - `server/` is an Express API (port 3001). Refresh pulls Yahoo (roster for each day of the matchup week,
   opponent's roster, 100 available players, season / last 30 days / last 7 days / this week's points)
-  and the NHL schedule, and stores it in Postgres (`db/migrations/`).
+  the NHL schedule and standings, and DailyFaceoff's starting goalies (today and tomorrow), stores it in
+  Postgres (`db/migrations/`), then plans the week's streams (`server/streaming.ts`). The search runs for `PLAN_SEARCH_SECONDS`
+  in `.env` (default 25, capped at 900 = 15 minutes), so Refresh takes about that much longer.
+- `scraper/` is a small Python service (Scrapling, port 3002) that reads DailyFaceoff; see
+  [docs/adr/0001](docs/adr/0001-python-scrapling-container-for-goalie-starts.md). If it fails, Refresh still
+  works and goalie starts show as projected only.
+- Streamer slots: mark players on the Lineup tab; anyone you added this matchup week counts automatically.
 - `server/source.ts` is the one seam to the fantasy platform; `server/yahoo/` implements it.
   When the league moves to Saucy Sports, add a second implementation.
 - `server/logic.ts` holds the math (FP/G, games left, waiver score, projection, flags); `npm test` covers it.
@@ -54,7 +64,7 @@ If Docker Desktop isn't running, the dashboard tells you; start it, then `npm ru
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | API + web app with live reload |
-| `npm run db:up` | Start Postgres in Docker |
+| `npm run db:up` | Start Postgres and the goalie scraper in Docker |
 | `npm run yahoo:auth` | One-time Yahoo sign-in |
 | `npm test` | Unit tests |
 | `npm run typecheck` | TypeScript check |

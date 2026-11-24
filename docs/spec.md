@@ -20,12 +20,16 @@ Independent from Saucy Sports: it never touches that repo, database, Figma file 
 - **Matchup**: you vs opponent: current points, games left, projected finish
   (current + games left x each starter's L30 FP/G); starters side by side with week points.
 - Shared header: tabs, Refresh button, "last updated" time.
+- **Streaming Center** (added 2026-11-23, terms in CONTEXT.md): open starts per slot per day, a week plan of
+  add/drop streams found by search during Refresh (kept unless a new plan is 2+ pts better), and a day view.
+  Lineup gets a Streamer toggle per row.
 
 ## Data
 - **Yahoo Fantasy API** (OAuth, `oob`: one-time code paste; client id/secret + refresh token in
   git-ignored `.env` and token file). League auto-detected (first 2026-27 NHL league; else set in `.env`).
   Source for roster, matchup, free agents, scoring weights, player stats/points (season, lastweek, lastmonth).
-- **NHL API** (api-web.nhle.com): schedule only (games per team per day), matched by team abbreviation.
+- **NHL API** (api-web.nhle.com): schedule (games per team per day) and standings (goals for/against per game).
+- **DailyFaceoff** starting goalies, scraped by the `scraper` container (docs/adr/0001).
 - **Postgres in Docker Compose** stores Yahoo snapshots + NHL schedule; refreshed by the Refresh button
   (no scheduler).
 - One small data-source adapter interface: Yahoo now, Saucy Sports later.
